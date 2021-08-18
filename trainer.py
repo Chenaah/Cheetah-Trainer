@@ -15,9 +15,9 @@ from tf2rl.misc.prepare_output_dir import prepare_output_dir
 from tf2rl.misc.initialize_logger import initialize_logger
 from tf2rl.envs.normalizer import EmpiricalNormalizer
 
-from dragonfly.exd import domains
-from dragonfly.exd.experiment_caller import CPFunctionCaller, EuclideanFunctionCaller
-from dragonfly.opt import random_optimiser, cp_ga_optimiser, gp_bandit
+# from dragonfly.exd import domains
+# from dragonfly.exd.experiment_caller import CPFunctionCaller, EuclideanFunctionCaller
+# from dragonfly.opt import random_optimiser, cp_ga_optimiser, gp_bandit
 import nevergrad as ng
 
 import wandb
