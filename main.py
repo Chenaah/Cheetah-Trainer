@@ -8,10 +8,9 @@ import numpy as np
 import gym
 import random
 import tensorflow as tf
-# from tf2rl.algos.ppo import PPO
-# from tf2rl.experiments.on_policy_trainer import OnPolicyTrainer
 from tf2rl.envs.utils import is_discrete, get_act_dim
 from sac import SAC
+from tf2rl.algos.td3 import TD3
 from trainer import Trainer
 import wandb
 import pickle
@@ -19,7 +18,7 @@ import shutil
 import glob
 
 # sys.path.insert(1, os.path.join(sys.path[0], '../..'))
-env_dir = "/home/lima/MiniCheetah/Cheetah-Gym"
+env_dir = "Cheetah-Gym"
 sys.path.insert(1, env_dir)
 
 OLD = False
@@ -29,7 +28,7 @@ if not OLD:
 else:
 	from old_dog import Dog
 
-DEBUG = True
+DEBUG = False
 BO = True
 REAL_TIME = False
 RENDER = False #if not DEBUG else True
@@ -98,6 +97,7 @@ PARAM_OPT_FOR_TESTING = None
 if __name__ == '__main__':
 	parser = Trainer.get_argument()
 	parser = SAC.get_argument(parser)
+	parser = TD3.get_argument(parser)
 	parser.add_argument('--fitting-mode', type=str, default=FITTING_MODE)
 	parser.add_argument('--optimiser', type=str, default=OPTIMISER)
 	parser.add_argument('--rotation', action="store_true", default=False)
@@ -116,7 +116,6 @@ if __name__ == '__main__':
 	parser.add_argument('--gait', type=str, default=GAIT)
 	parser.add_argument('--param-update-interval', type=int, default=PARAM_UPDATE_INTERVAL)
 	parser.add_argument('--num-history-observation', type=int, default=0)
-	# parser.add_argument('--randomise', action="store_true", default=False)
 	parser.add_argument('--randomise', type=float, default=0)
 	parser.add_argument('--reset-mode', type=str, default="stand")
 	parser.add_argument('--progressing', action="store_true", default=False)
@@ -125,6 +124,7 @@ if __name__ == '__main__':
 	parser.add_argument('--external-force', type=float, default=0)
 	parser.add_argument('--leg-offset-range', type=float, default=0.4)
 	parser.add_argument('--robot-k', type=float, default=0.69)
+	parser.add_argument('--policy', type=str, default="SAC")
 	parser.add_argument('--note', type=str, default="")
 	args = parser.parse_args()
 
@@ -256,18 +256,35 @@ if __name__ == '__main__':
 		env.set_dynamics(**DYN_CONFIG)
 		test_env.set_dynamics(**DYN_CONFIG)
 
-	policy = SAC(
-		state_shape=env.observation_space.shape,
-		action_dim=env.action_space.high.size,
-		gpu=0,
-		memory_capacity=args.memory_capacity,
-		max_action=env.action_space.high[0],
-		batch_size=args.batch_size,
-		n_warmup=args.n_warmup,
-		alpha=args.alpha,
-		auto_alpha=args.auto_alpha,
-		actor_units=(256, 256) if args.num_history_observation==0 else (256, 256, 256),
-		critic_units=(256, 256) if args.num_history_observation==0 else (256, 256, 256))
+	if args.policy =="SAC":
+		policy = SAC(
+			state_shape=env.observation_space.shape,
+			action_dim=env.action_space.high.size,
+			gpu=0,
+			memory_capacity=args.memory_capacity,
+			max_action=env.action_space.high[0],
+			batch_size=args.batch_size,
+			n_warmup=args.n_warmup,
+			alpha=args.alpha,
+			auto_alpha=args.auto_alpha,
+			actor_units=(256, 256) if args.num_history_observation==0 else (256, 256, 256),
+			critic_units=(256, 256) if args.num_history_observation==0 else (256, 256, 256))
+	elif args.policy =="TD3":
+		policy = TD3(
+			state_shape=env.observation_space.shape,
+			action_dim=env.action_space.high.size,
+			gpu=0,
+			memory_capacity=args.memory_capacity,
+			max_action=env.action_space.high[0],
+			batch_size=args.batch_size,
+			n_warmup=args.n_warmup,
+			# alpha=args.alpha,
+			# auto_alpha=args.auto_alpha,
+			actor_units=(256, 256) if args.num_history_observation==0 else (256, 256, 256),
+			critic_units=(256, 256) if args.num_history_observation==0 else (256, 256, 256))
+	else:
+		print("WHAT THE F**K IS ", args.policy, " ???")
+
 
 	trainer = Trainer(policy, env, args, test_env=test_env, 
 					  bo = BO,
@@ -395,35 +412,3 @@ if __name__ == '__main__':
 		trainer()
 
 
-
-# OLD CODE
-# DYN_CONFIG_HARD = {'lateralFriction_toe': 0.8, #1, # 0.6447185797960826, 
-# 			   'lateralFriction_shank': 0.737, #0.6447185797960826  *  (0.351/0.512),
-# 			   'contactStiffness': 1530, # 4173, #2157.4863390669952, 1615?
-# 			   'contactDamping': 160, # 122, #32.46233575737161,    150?
-# 			   'linearDamping': 0.03111169082496665, 
-# 			   'angularDamping': 0.04396695866661371, 
-# 			   'jointDamping': 0.03118494025640309, 
-# 			   "max_force": 12,
-# 			   "mass_body": 10.5
-# 			   }
-# DYN_CONFIG_HARD2 = {'lateralFriction_toe': 0.7, #1, # 0.6447185797960826, 
-# 			  'lateralFriction_shank': 0.5, #0.6447185797960826  *  (0.351/0.512),
-# 			  'contactStiffness': 2729, # 4173, #2157.4863390669952, 1615?
-# 			  'contactDamping': 414, #160, # 122, #32.46233575737161,    150?
-# 			  'linearDamping': 0.03111169082496665, 
-# 			  'angularDamping': 0.04396695866661371, 
-# 			  'jointDamping': 0.03118494025640309, 
-# 			  "max_force": 10,
-# 			  "mass_body": 10.5
-# 			  }
-
-# DYN_CONFIG = {'lateralFriction_toe': 0.6447185797960826, 
-# 			  'lateralFriction_shank': 0.6447185797960826  *  (0.351/0.512),
-# 			  'contactStiffness': 2157.4863390669952, 
-# 			  'contactDamping': 32.46233575737161, 
-# 			  'linearDamping': 0.03111169082496665, 
-# 			  'angularDamping': 0.04396695866661371, 
-# 			  'jointDamping': 0.03118494025640309, 
-# 			  # 'w_y_offset': 0.0021590823485152914
-# 			  }
