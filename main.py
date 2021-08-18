@@ -28,7 +28,7 @@ if not OLD:
 else:
 	from old_dog import Dog
 
-DEBUG = False
+DEBUG = False  # REMEMBER TO TURN IT OFF BEFORE YOU GOING TO SLEEP !!!
 BO = True
 REAL_TIME = False
 RENDER = False #if not DEBUG else True
@@ -126,11 +126,12 @@ if __name__ == '__main__':
 	parser.add_argument('--robot-k', type=float, default=0.69)
 	parser.add_argument('--policy', type=str, default="SAC")
 	parser.add_argument('--note', type=str, default="")
+	parser.add_argument('--num-experiment', type=int, default=1)
 	args = parser.parse_args()
 
 	parser.set_defaults(batch_size=256)
 	parser.set_defaults(n_warmup=10000 if not DEBUG else 100)
-	parser.set_defaults(max_steps=3e6)
+	parser.set_defaults(max_steps=3e6 if not DEBUG else 2000)
 	parser.set_defaults(episode_max_steps=2000 if args.progressing else 1000)
 	if DEBUG:
 		parser.set_defaults(test_interval=1001)  # FOR DEBUGGING
@@ -285,130 +286,142 @@ if __name__ == '__main__':
 	else:
 		print("WHAT THE F**K IS ", args.policy, " ???")
 
+	for exp_i in range(args.num_experiment):
 
-	trainer = Trainer(policy, env, args, test_env=test_env, 
-					  bo = BO,
-					  param_domain = DOMAIN_RANGE,  # if the length is 4, they stand for [A, Kp, Kd, B factor]  v2: [B, Kp, Kd, A factor]     # param_domain = [[0.3, 0.6], [0.02, 0.1]],
-					  param_opt = INI_GUESS, # [0.1000, 0.0635], # [0.1188, 0.0607], # [0.12, 0.0389], #[0.2, 0.0389],
-					  param_update_interval_epi = args.param_update_interval,
-					  warmup_epi = args.optimiser_warmup if not DEBUG else 3,
-					  fitting = FITTING_MODE,
-					  optimiser = args.optimiser,
-					  rotation = args.rotation,
-					  debug = DEBUG,
-					  profiler_enable = args.profile,
-					  optimisation_mask = args.optimisation_mask,
-					  param_opt_testing = PARAM_OPT_FOR_TESTING,
-					  eval_using_online_param = args.eval_using_online_param,
-					  DEBUG = DEBUG)
+		print("")
+		print("========================================================")
+		print("                 START EXPERIENT ", exp_i)
+		print("========================================================")
+		print("")
 
-	if not args.evaluate:
-		with open(os.path.join(trainer._output_dir, "env_config.pkl"), 'wb') as f:
-			pickle.dump(env_args, f, pickle.HIGHEST_PROTOCOL)
-		with open(os.path.join(trainer._output_dir, "env_dynamics_config.pkl"), 'wb') as f:
-			pickle.dump(DYN_CONFIG, f, pickle.HIGHEST_PROTOCOL)
+		trainer = Trainer(policy, env, args, test_env=test_env, 
+						  bo = BO,
+						  param_domain = DOMAIN_RANGE,  # if the length is 4, they stand for [A, Kp, Kd, B factor]  v2: [B, Kp, Kd, A factor]     # param_domain = [[0.3, 0.6], [0.02, 0.1]],
+						  param_opt = INI_GUESS, # [0.1000, 0.0635], # [0.1188, 0.0607], # [0.12, 0.0389], #[0.2, 0.0389],
+						  param_update_interval_epi = args.param_update_interval,
+						  warmup_epi = args.optimiser_warmup if not DEBUG else 3,
+						  fitting = FITTING_MODE,
+						  optimiser = args.optimiser,
+						  rotation = args.rotation,
+						  debug = DEBUG,
+						  profiler_enable = args.profile,
+						  optimisation_mask = args.optimisation_mask,
+						  param_opt_testing = PARAM_OPT_FOR_TESTING,
+						  eval_using_online_param = args.eval_using_online_param,
+						  DEBUG = DEBUG)
 
-		##########  SAVE SRC FILES
-		if not os.path.isdir(os.path.join(trainer._output_dir, "src")) :
-			os.mkdir(os.path.join(trainer._output_dir, "src"))
-		# shutil.copy(os.path.abspath(__file__), os.path.join(trainer._output_dir, "src")) 
-		# shutil.copy("tf2rl/experiments/trainer.py", os.path.join(trainer._output_dir, "src")) 
-		src_files = glob.glob("*.py")
-		for src_file in src_files:
-			shutil.copy(src_file, os.path.join(trainer._output_dir, "src"))
+		if not args.evaluate:
+			with open(os.path.join(trainer._output_dir, "env_config.pkl"), 'wb') as f:
+				pickle.dump(env_args, f, pickle.HIGHEST_PROTOCOL)
+			with open(os.path.join(trainer._output_dir, "env_dynamics_config.pkl"), 'wb') as f:
+				pickle.dump(DYN_CONFIG, f, pickle.HIGHEST_PROTOCOL)
 
-		shutil.copytree(env_dir, os.path.join(trainer._output_dir, "src", "environment"), dirs_exist_ok=True)
+			##########  SAVE SRC FILES
+			if not os.path.isdir(os.path.join(trainer._output_dir, "src")) :
+				os.mkdir(os.path.join(trainer._output_dir, "src"))
+			# shutil.copy(os.path.abspath(__file__), os.path.join(trainer._output_dir, "src")) 
+			# shutil.copy("tf2rl/experiments/trainer.py", os.path.join(trainer._output_dir, "src")) 
+			src_files = glob.glob("*.py")
+			for src_file in src_files:
+				shutil.copy(src_file, os.path.join(trainer._output_dir, "src"))
 
-		# if not os.path.isdir(os.path.join(trainer._output_dir, "src", "environment")) :
-		# 	os.mkdir(os.path.join(trainer._output_dir, "src", "environment"))
-		# shutil.copy(os.path.abspath(__file__), os.path.join(trainer._output_dir, "src")) 
+			shutil.copytree(env_dir, os.path.join(trainer._output_dir, "src", "environment"), dirs_exist_ok=True)
+
+			# if not os.path.isdir(os.path.join(trainer._output_dir, "src", "environment")) :
+			# 	os.mkdir(os.path.join(trainer._output_dir, "src", "environment"))
+			# shutil.copy(os.path.abspath(__file__), os.path.join(trainer._output_dir, "src")) 
 
 
-	config = {}
-	config["experiment/log_directory"] = trainer._output_dir
-	config["experiment/env_version"] = ENV_VER
-	# config["experiment/action_mode"] = ACTION_MODE
-	for conf in DYN_CONFIG:
-		config["dynamics/"+conf] = DYN_CONFIG[conf]
-	parser_dict = vars(args)
-	# del parser_dict['fitting_mode']
-	# del parser_dict['optimiser']
-	# del parser_dict['rotation']
-	# del parser_dict['action_mode']
-	# del parser_dict['optimiser_warmup']
-	for conf in parser_dict:
-		config["training/"+conf] = vars(args)[conf]
-	config["optimisation/turn_on"] = BO
-	config["optimisation/domain_range"] = DOMAIN_RANGE
-	config["optimisation/initial_guess"] = INI_GUESS
-	config["optimisation/param_update_interval"] = PARAM_UPDATE_INTERVAL
-	config["optimisation/optimisation_mask"] = args.optimisation_mask
-	# config["optimisation/optimiser_warmup"] = OPTIMISER_WARMUP
-	# config["optimisation/fitting_mode"] = FITTING_MODE
-	# config["optimisation/optimiser"] = OPTIMISER
-	# config["optimisation/rotation"] = ROTATION
+		config = {}
+		config["experiment/log_directory"] = trainer._output_dir
+		config["experiment/env_version"] = ENV_VER
+		# config["experiment/action_mode"] = ACTION_MODE
+		for conf in DYN_CONFIG:
+			config["dynamics/"+conf] = DYN_CONFIG[conf]
+		parser_dict = vars(args)
+		# del parser_dict['fitting_mode']
+		# del parser_dict['optimiser']
+		# del parser_dict['rotation']
+		# del parser_dict['action_mode']
+		# del parser_dict['optimiser_warmup']
+		for conf in parser_dict:
+			config["training/"+conf] = vars(args)[conf]
+		config["optimisation/turn_on"] = BO
+		config["optimisation/domain_range"] = DOMAIN_RANGE
+		config["optimisation/initial_guess"] = INI_GUESS
+		config["optimisation/param_update_interval"] = PARAM_UPDATE_INTERVAL
+		config["optimisation/optimisation_mask"] = args.optimisation_mask
+		# config["optimisation/optimiser_warmup"] = OPTIMISER_WARMUP
+		# config["optimisation/fitting_mode"] = FITTING_MODE
+		# config["optimisation/optimiser"] = OPTIMISER
+		# config["optimisation/rotation"] = ROTATION
 
-	for conf in env_args:
-		if not conf == "experiment_info_str":
-			config["environment/"+conf] = env_args[conf]
-	# config["training/A_range"] = A_RANGE
-	# config["training/B_range"] = B_RANGE
+		for conf in env_args:
+			if not conf == "experiment_info_str":
+				config["environment/"+conf] = env_args[conf]
+		# config["training/A_range"] = A_RANGE
+		# config["training/B_range"] = B_RANGE
 
-	name = trainer._policy.policy_name
-	name = name + "+" + OPTIMISER if ACTION_MODE=="partial" else name
-	if ACTION_MODE == "partial":
-		name = name + "+PD"  if len(DOMAIN_RANGE)==4 else name
-		name = name + "[T]" if FITTING_MODE == "training" else name + "[E]" 
-		name = name + "[R]" if ROTATION else name
-	elif ACTION_MODE == "whole":
-		name = name + "+CP"
-	elif ACTION_MODE == "residual":
-		name = "Residual" + name
-		if BO:
-			name = name + "+" + OPTIMISER
+		name = trainer._policy.policy_name
+		name = name + "+" + OPTIMISER if ACTION_MODE=="partial" else name
+		if ACTION_MODE == "partial":
+			name = name + "+PD"  if len(DOMAIN_RANGE)==4 else name
+			name = name + "[T]" if FITTING_MODE == "training" else name + "[E]" 
+			name = name + "[R]" if ROTATION else name
+		elif ACTION_MODE == "whole":
+			name = name + "+CP"
+		elif ACTION_MODE == "residual":
+			name = "Residual" + name
+			if BO:
+				name = name + "+" + OPTIMISER
+			else:
+				name = name + "+" + "CP"
+
+		if args.randomise:
+			name = name  + "[Rand]"
+
+		if args.progressing:
+			name = name  + "[Prog]"
+
+		if args.gait == "rose":
+			name = name  + "[Rose]"
+		elif args.gait == "triangle":
+			name = name  + "[Trig]"
+		elif args.gait == "sine":
+			name = name  + "[Sine]"
+		elif args.gait == "line":
+			name = name  + "[Line]"
+
+		if OLD:
+			name = name  + "[Old]"
+
+
+
+		env.note = name
+		test_env.note = name
+		experiment_info = ""
+		for k in config:
+			experiment_info += k + " : " + str(config[k]) + "\n"
+		print(experiment_info)
+		env.experiment_info_str = experiment_info
+		test_env.experiment_info_str = experiment_info
+
+		if not os.path.isdir(os.path.join(trainer._output_dir, os.pardir, ".wandb")) :
+			os.mkdir(os.path.join(trainer._output_dir, os.pardir, ".wandb"))
+		wandb_dir = os.path.join(trainer._output_dir, os.pardir, ".wandb", os.path.basename(trainer._output_dir))
+		if not os.path.isdir(wandb_dir) :
+			os.mkdir(wandb_dir)
+		wandb_dir = os.path.abspath(wandb_dir)
+		wandb.init(config=config, project="Standing Cheetah", name=name, dir=wandb_dir, mode="disabled" if args.evaluate or not WANDB else "online", notes=args.note)
+
+		if args.evaluate or args.model_dir is not None:
+			trainer.evaluate_policy_continuously()
 		else:
-			name = name + "+" + "CP"
+			trainer()
 
-	if args.randomise:
-		name = name  + "[Rand]"
+		wandb.finish()
 
-	if args.progressing:
-		name = name  + "[Prog]"
-
-	if args.gait == "rose":
-		name = name  + "[Rose]"
-	elif args.gait == "triangle":
-		name = name  + "[Trig]"
-	elif args.gait == "sine":
-		name = name  + "[Sine]"
-	elif args.gait == "line":
-		name = name  + "[Line]"
-
-	if OLD:
-		name = name  + "[Old]"
-
-
-
-	env.note = name
-	test_env.note = name
-	experiment_info = ""
-	for k in config:
-		experiment_info += k + " : " + str(config[k]) + "\n"
-	print(experiment_info)
-	env.experiment_info_str = experiment_info
-	test_env.experiment_info_str = experiment_info
-
-	if not os.path.isdir(os.path.join(trainer._output_dir, os.pardir, ".wandb")) :
-		os.mkdir(os.path.join(trainer._output_dir, os.pardir, ".wandb"))
-	wandb_dir = os.path.join(trainer._output_dir, os.pardir, ".wandb", os.path.basename(trainer._output_dir))
-	if not os.path.isdir(wandb_dir) :
-		os.mkdir(wandb_dir)
-	wandb_dir = os.path.abspath(wandb_dir)
-	wandb.init(config=config, project="Standing Cheetah", name=name, dir=wandb_dir, mode="disabled" if args.evaluate or not WANDB else "online", notes=args.note)
-
-	if args.evaluate or args.model_dir is not None:
-		trainer.evaluate_policy_continuously()
-	else:
-		trainer()
+	test_env._p.disconnect()
+	env._p.disconnect()
 
 
