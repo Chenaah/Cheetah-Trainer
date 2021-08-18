@@ -1,0 +1,3 @@
+[submodule "Cheetah-Gym"]
+	path = Cheetah-Gym
+	url = git@github.com:Chenaah/Cheetah-Gym.git
