@@ -12,6 +12,7 @@ from tf2rl.envs.utils import is_discrete, get_act_dim
 from sac import SAC
 from tf2rl.algos.td3 import TD3
 from trainer import Trainer
+from pureBB import BBTrainer
 import wandb
 import pickle
 import shutil
@@ -37,9 +38,7 @@ ENV_VER = 3
 DOMAIN_RANGE = [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.1]]  # [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5]] # [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5], [0, 0.2], [0, 0.2]]
 INI_GUESS = [0.035, 0, 0, 1, 0.1, 0.1, 0.1, 0.1, 0.02] # [0.015, 0, 0, 6, 0.1, 0.1, 0.1, 0.1] # [0.0896, 0.0603, 0.0645, 4.3990] # [0.035, 0, 0, 2.85714, 0.1, 0.1]  # [0.0896, 0.0603, 0.0645, 4.3990] # [0.0712, 0.0777, 0.1463, 2.5790] #[0.036, 0.01, 0.02, 4] #[0.06000, 0.05, 0.12, 2] # [0.0323, 0.0642, 0.0994, 4.5330] #SAC_20210727036  # 
 
-# FOR TRIANGLE GAIT ON REAL ROBOT
-# DOMAIN_RANGE = [[0.01, 0.03], [0, 0.1], [0, 0.1], [9, 11], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.02]]
-# INI_GUESS = [0.022, 0, 0, 10, 0.1*0.8, 0.06*0.8, 0.1*0.8, 0.1*0.8, 0.011]
+
 
 
 # FOR TRIANGLE GAIT ON REAL ROBOT
@@ -117,6 +116,8 @@ if __name__ == '__main__':
 	parser.add_argument('--param-update-interval', type=int, default=PARAM_UPDATE_INTERVAL)
 	parser.add_argument('--num-history-observation', type=int, default=0)
 	parser.add_argument('--randomise', type=float, default=0)
+	parser.add_argument('--randomise-eval', type=float, default=0)
+	parser.add_argument('--only-randomise-dyn', action="store_true", default=False)
 	parser.add_argument('--reset-mode', type=str, default="stand")
 	parser.add_argument('--progressing', action="store_true", default=False)
 	parser.add_argument('--fast-error-update', action="store_true", default=True)
@@ -144,6 +145,12 @@ if __name__ == '__main__':
 	# parser.set_defaults(model_dir="results/SAC_20210724020F")  # fully trained, ver3, Optimal Point: [0.1000, 0.0250, 0.0873, 0.2276]  Optimal Value: 1129.6312; the control is based on amplitude
 	# parser.set_defaults(save_test_movie=True)  # code the render function for mode='rgb_array'  20210723T210835.832958_SAC_  
 	args = parser.parse_args()
+
+	if args.gait == "triangle":  # pay attention that this is for simulation training
+		# FOR TRIANGLE GAIT IN THE SIMULATOR
+		DOMAIN_RANGE = [[0.01, 0.1], [0, 0.1], [0, 0.1], [5, 20], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.1]]
+		INI_GUESS = [0.022, 0, 0, 10, 0.1, 0.1, 0.1, 0.1, 0.02]
+		A_RANGE = (0.1, 2)
 
 	if DEBUG:
 		WANDB = False
@@ -229,7 +236,7 @@ if __name__ == '__main__':
 					"param_opt": INI_GUESS, "gait": args.gait,
 					"num_history_observation": args.num_history_observation, "randomise": args.randomise, "custom_dynamics": DYN_CONFIG, "max_steps": max_steps,
 					"progressing" : args.progressing, "custom_robot": {"k": args.robot_k}, "mode": args.reset_mode, "leg_offset_range": LEG_OFFSET_RANGE,
-					"external_force": args.external_force, "leg_bootstrapping": args.leg_bootstrapping
+					"external_force": args.external_force, "leg_bootstrapping": args.leg_bootstrapping, "only_randomise_dyn": args.only_randomise_dyn
 					}
 
 
@@ -249,6 +256,8 @@ if __name__ == '__main__':
 	env = Dog(**env_args)
 	if not args.evaluate:
 		env_args["render"] = False
+		if args.randomise_eval:
+			env_args["randomise"] = args.randomise_eval
 		test_env = Dog(**env_args)
 	else:
 		test_env = env
@@ -283,6 +292,8 @@ if __name__ == '__main__':
 			# auto_alpha=args.auto_alpha,
 			actor_units=(256, 256) if args.num_history_observation==0 else (256, 256, 256),
 			critic_units=(256, 256) if args.num_history_observation==0 else (256, 256, 256))
+	elif args.policy =="none":
+		pass
 	else:
 		print("WHAT THE F**K IS ", args.policy, " ???")
 
@@ -294,21 +305,28 @@ if __name__ == '__main__':
 		print("========================================================")
 		print("")
 
-		trainer = Trainer(policy, env, args, test_env=test_env, 
-						  bo = BO,
-						  param_domain = DOMAIN_RANGE,  # if the length is 4, they stand for [A, Kp, Kd, B factor]  v2: [B, Kp, Kd, A factor]     # param_domain = [[0.3, 0.6], [0.02, 0.1]],
-						  param_opt = INI_GUESS, # [0.1000, 0.0635], # [0.1188, 0.0607], # [0.12, 0.0389], #[0.2, 0.0389],
-						  param_update_interval_epi = args.param_update_interval,
-						  warmup_epi = args.optimiser_warmup if not DEBUG else 3,
-						  fitting = FITTING_MODE,
-						  optimiser = args.optimiser,
-						  rotation = args.rotation,
-						  debug = DEBUG,
-						  profiler_enable = args.profile,
-						  optimisation_mask = args.optimisation_mask,
-						  param_opt_testing = PARAM_OPT_FOR_TESTING,
-						  eval_using_online_param = args.eval_using_online_param,
-						  DEBUG = DEBUG)
+		if not args.policy == "none":
+
+			trainer = Trainer(policy, env, args, test_env=test_env, 
+							  bo = BO,
+							  param_domain = DOMAIN_RANGE,  # if the length is 4, they stand for [A, Kp, Kd, B factor]  v2: [B, Kp, Kd, A factor]     # param_domain = [[0.3, 0.6], [0.02, 0.1]],
+							  param_opt = INI_GUESS, # [0.1000, 0.0635], # [0.1188, 0.0607], # [0.12, 0.0389], #[0.2, 0.0389],
+							  param_update_interval_epi = args.param_update_interval,
+							  warmup_epi = args.optimiser_warmup if not DEBUG else 3,
+							  fitting = FITTING_MODE,
+							  optimiser = args.optimiser,
+							  rotation = args.rotation,
+							  debug = DEBUG,
+							  profiler_enable = args.profile,
+							  optimisation_mask = args.optimisation_mask,
+							  param_opt_testing = PARAM_OPT_FOR_TESTING,
+							  eval_using_online_param = args.eval_using_online_param,
+							  DEBUG = DEBUG)
+
+		else:
+
+			trainer = BBTrainer(env, args, test_env=test_env, param_opt=INI_GUESS, param_domain=DOMAIN_RANGE, optimisation_mask=args.optimisation_mask, optimiser=args.optimiser, max_steps=3e6,
+								eval_using_online_param=args.eval_using_online_param)
 
 		if not args.evaluate:
 			with open(os.path.join(trainer._output_dir, "env_config.pkl"), 'wb') as f:
@@ -371,14 +389,13 @@ if __name__ == '__main__':
 		elif ACTION_MODE == "whole":
 			name = name + "+CP"
 		elif ACTION_MODE == "residual":
-			name = "Residual" + name
+			name = "Residual" + name if not args.policy == "none" else name
 			if BO:
 				name = name + "+" + OPTIMISER
 			else:
 				name = name + "+" + "CP"
 
-		if args.randomise:
-			name = name  + "[Rand]"
+		
 
 		if args.progressing:
 			name = name  + "[Prog]"
@@ -391,6 +408,11 @@ if __name__ == '__main__':
 			name = name  + "[Sine]"
 		elif args.gait == "line":
 			name = name  + "[Line]"
+
+		if args.randomise:
+			name = name  + "[Rand]"
+		if args.randomise_eval:
+			name = name  + "[REval]"
 
 		if OLD:
 			name = name  + "[Old]"
