@@ -37,7 +37,7 @@ ENV_VER = 3
 # FOR SINE/ROSE/LINE GAIT IN THE SIMULATOR
 DOMAIN_RANGE = [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.1]]  # [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5]] # [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5], [0, 0.2], [0, 0.2]]
 INI_GUESS = [0.035, 0, 0, 1, 0.1, 0.1, 0.1, 0.1, 0.02] # [0.015, 0, 0, 6, 0.1, 0.1, 0.1, 0.1] # [0.0896, 0.0603, 0.0645, 4.3990] # [0.035, 0, 0, 2.85714, 0.1, 0.1]  # [0.0896, 0.0603, 0.0645, 4.3990] # [0.0712, 0.0777, 0.1463, 2.5790] #[0.036, 0.01, 0.02, 4] #[0.06000, 0.05, 0.12, 2] # [0.0323, 0.0642, 0.0994, 4.5330] #SAC_20210727036  # 
-
+# Note that these may be overwrote
 
 
 
@@ -126,6 +126,9 @@ if __name__ == '__main__':
 	parser.add_argument('--leg-offset-range', type=float, default=0.4)
 	parser.add_argument('--robot-k', type=float, default=0.69)
 	parser.add_argument('--policy', type=str, default="SAC")
+	parser.add_argument('--dynamics-setting', type=str, default="easy")  # easy / hard / real (hard+small range)
+	parser.add_argument('--eval-using-online-param', action="store_true", default=False)
+	parser.add_argument('--disable-wandb', action="store_true", default=False)
 	parser.add_argument('--note', type=str, default="")
 	parser.add_argument('--num-experiment', type=int, default=1)
 	args = parser.parse_args()
@@ -146,12 +149,59 @@ if __name__ == '__main__':
 	# parser.set_defaults(save_test_movie=True)  # code the render function for mode='rgb_array'  20210723T210835.832958_SAC_  
 	args = parser.parse_args()
 
+
+	# SIMULATION FRIENDLY CONFIGERATION
+	DYN_CONFIG0 = {'lateralFriction_toe': 1, # 0.6447185797960826, 
+				   'lateralFriction_shank': 0.737, #0.6447185797960826  *  (0.351/0.512),
+				   'contactStiffness': 4173, #2157.4863390669952, 
+				   'contactDamping': 122, #32.46233575737161, 
+				   'linearDamping': 0.03111169082496665, 
+				   'angularDamping': 0.04396695866661371, 
+				   'jointDamping': 0.03118494025640309, 
+				   }
+
+	# CLOSER TO REAL WORLD
+	DYN_CONFIG_HARD3 = {'lateralFriction_toe': 0.7, #1, # 0.6447185797960826, 
+						'lateralFriction_shank': 0.5, #0.6447185797960826  *  (0.351/0.512),
+						'contactStiffness': 2592, #2729, # 4173, #2157.4863390669952, 1615?
+						'contactDamping': 450, #414, #160, # 122, #32.46233575737161,    150?
+						'linearDamping': 0.03111169082496665, 
+						'angularDamping': 0.04396695866661371, 
+						'jointDamping': 0.03118494025640309, 
+						"max_force": 12, #10,
+						"mass_body": 9.5 #10.5
+						}
+
+
 	if args.gait == "triangle":  # pay attention that this is for simulation training
 		# FOR TRIANGLE GAIT IN THE SIMULATOR
 		DOMAIN_RANGE = [[0.01, 0.1], [0, 0.1], [0, 0.1], [5, 20], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.1]]
 		INI_GUESS = [0.022, 0, 0, 10, 0.1, 0.1, 0.1, 0.1, 0.02]
 		A_RANGE = (0.1, 2)
 
+
+
+	if args.dynamics_setting == "easy":
+		DYN_CONFIG = DYN_CONFIG0
+	elif args.dynamics_setting == "hard":
+		DYN_CONFIG = DYN_CONFIG_HARD3
+	elif args.dynamics_setting == "real":
+		DYN_CONFIG = DYN_CONFIG_HARD3
+		if args.gait == "triangle": 
+			DOMAIN_RANGE = [[0.01, 0.03], [0, 0.1], [0, 0.1], [9, 11], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.02]]
+			INI_GUESS = [0.022, 0, 0, 10, 0.1*0.8, 0.06*0.8, 0.1*0.8, 0.1*0.8, 0.011]
+			A_RANGE = (0.1, 2)  # seems useless
+		else:
+			DOMAIN_RANGE = [[0.01, 0.03], [0, 0.1], [0, 0.1], [1, 3], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.02]]  
+			INI_GUESS = [0.022, 0, 0, 2, 0.1*0.8, 0.1*0.8, 0.1*0.8, 0.1*0.8, 0.011] 
+			A_RANGE = (0.1, 0.4)  # seems useless
+
+	else:
+		print("WHAT THE F**K IS ", args.dynamics_setting, " ???")
+
+
+
+	
 	if DEBUG:
 		WANDB = False
 
@@ -297,6 +347,10 @@ if __name__ == '__main__':
 	else:
 		print("WHAT THE F**K IS ", args.policy, " ???")
 
+	if args.optimiser == "none":
+		BO = False
+		INI_GUESS = [0]*9
+
 	for exp_i in range(args.num_experiment):
 
 		print("")
@@ -393,7 +447,7 @@ if __name__ == '__main__':
 			if BO:
 				name = name + "+" + OPTIMISER
 			else:
-				name = name + "+" + "CP"
+				name = trainer._policy.policy_name
 
 		
 
@@ -413,6 +467,14 @@ if __name__ == '__main__':
 			name = name  + "[Rand]"
 		if args.randomise_eval:
 			name = name  + "[REval]"
+		if args.dynamics_setting == "hard":
+			name = name  + "[Hard]"
+		elif args.dynamics_setting == "real":
+			name = name  + "[Real]"
+
+		if args.optimiser_warmup < 0:
+			name = name  + "[BBF]"
+
 
 		if OLD:
 			name = name  + "[Old]"
@@ -434,7 +496,7 @@ if __name__ == '__main__':
 		if not os.path.isdir(wandb_dir) :
 			os.mkdir(wandb_dir)
 		wandb_dir = os.path.abspath(wandb_dir)
-		wandb.init(config=config, project="Standing Cheetah", name=name, dir=wandb_dir, mode="disabled" if args.evaluate or not WANDB else "online", notes=args.note)
+		wandb.init(config=config, project="Standing Cheetah", name=name, dir=wandb_dir, mode="disabled" if args.evaluate or not WANDB or args.disable_wandb else "online", notes=args.note)
 
 		if args.evaluate or args.model_dir is not None:
 			trainer.evaluate_policy_continuously()

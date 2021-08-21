@@ -66,10 +66,38 @@ class Trainer:
 		self._policy = policy
 		self._env = env
 		self._test_env = self._env if test_env is None else test_env
+		self.param_update_interval = param_update_interval
+		self.param_update_interval_epi = param_update_interval_epi
+		self.param_opt = param_opt
+		self.bo = bo
+		self.domains = param_domain
+		self.save_model = save_model
+		self.warmup_epi = warmup_epi
+		self.rotation = rotation
+		self.fitting = fitting
+		self.optimiser_name = optimiser
+		self.debug = debug
+		self.profiler_enable = profiler_enable
+		self.optimisation_mask = optimisation_mask
+		assert len(self.optimisation_mask) == 9
+		self.param_opt_testing = param_opt_testing
+		self.eval_using_online_param = eval_using_online_param
+		self.DEBUG = DEBUG
+
+
+		self.param_opt_masked = [self.param_opt[i] for i in range(len(self.optimisation_mask)) if self.optimisation_mask[i] == '1']
+		self.domains_masked = [self.domains[i] for i in range(len(self.optimisation_mask)) if self.optimisation_mask[i] == '1']
+		print("optimisation_mask: ", self.optimisation_mask)
+		print("param_opt_masked: ", self.param_opt_masked)
+		print("domains_masked: ", np.array(self.domains_masked))
+
+
 		if self._normalize_obs:
 			assert isinstance(env.observation_space, Box)
 			self._obs_normalizer = EmpiricalNormalizer(
 				shape=env.observation_space.shape)
+		self.action_mode = self._env.action_mode
+
 
 		# prepare log directory
 		if not os.path.isdir(self._logdir) :
@@ -86,39 +114,13 @@ class Trainer:
 		os.mkdir(self._output_dir)
 		os.mkdir(os.path.join(self._output_dir, "best_models"))
 
-
-		# self._output_dir = prepare_output_dir(
-		#     args=args, user_specified_dir=self._logdir,
-		#     suffix="{}_{}".format(self._policy.policy_name, args.dir_suffix))
 		self.logger = initialize_logger(
 			logging_level=logging.getLevelName(args.logging_level),
 			output_dir=self._output_dir)
 
-		self.save_model = save_model
-		self.bo = bo
-		self.action_mode = self._env.action_mode
-		self.fitting = fitting
-		self.rotation = rotation
-		self.optimiser_name = optimiser
-		self.domains = param_domain
-		self.debug = debug
-		self.profiler_enable = profiler_enable
-		self.optimisation_mask = optimisation_mask
-		assert len(self.optimisation_mask) == 9
-		self.param_opt = param_opt
-
-		self.param_opt_masked = [self.param_opt[i] for i in range(len(self.optimisation_mask)) if self.optimisation_mask[i] == '1']
-		self.domains_masked = [self.domains[i] for i in range(len(self.optimisation_mask)) if self.optimisation_mask[i] == '1']
-
-		self.param_opt_testing = param_opt_testing
-		self.eval_using_online_param = eval_using_online_param
-
-		self.DEBUG = DEBUG
-
-		print("optimisation_mask: ", self.optimisation_mask)
-		print("param_opt_masked: ", self.param_opt_masked)
-		print("domains_masked: ", np.array(self.domains_masked))
-
+		if self.optimiser_name == "none":
+			assert self.bo == False
+			assert np.all(np.array(self.param_opt) == 0)
 
 		if self.action_mode == "whole":
 			self.logger.info("ACTION MODE: WHOLE BODY CONTROL WITH REINFORCEMENT LEARNING")
@@ -131,7 +133,6 @@ class Trainer:
 				assert bo == True
 		elif self.action_mode == "residual":
 			pass
-			# assert env.action_space.shape[0] == 6
 
 		if args.evaluate:
 			assert args.model_dir is not None
@@ -142,43 +143,27 @@ class Trainer:
 		# prepare TensorBoard output
 		self.writer = tf.summary.create_file_writer(self._output_dir)
 		self.writer.set_as_default()
-
-		self.param_update_interval = param_update_interval
-		self.param_update_interval_epi = param_update_interval_epi
 		
 		self.bo_lock = True
 		self.rl_lock = False
-		self.warmup_epi = warmup_epi
+		self.rl_enable = True
 		self.best_x, self.best_y = None, float('-inf')
 		self.best_evaluation = float('-inf')
 
-		# if self.bo:
-		# 	self.param_opt = param_opt
-		# 	if self.optimiser_name == "BO":
-		# 		domain = domains.EuclideanDomain(param_domain)
-		# 		self.func_caller = EuclideanFunctionCaller(None, domain)
+		if self.warmup_epi < 0:
+			# training BB first, then RL (optimisation of BB is better turned off while training RL I think)
+			self.bo_lock = False
+			self.rl_enable = False
+			self.param_update_interval_epi = 1
+			self.eval_using_online_param = False # otherwise it doesn't make sense when RL is off
+			self.logger.info("PARAMETERS OPTIMISATION BEGINS!")
+			self._setup_optimiser()
 
-		# 	# options = argparse.Namespace(
-		# 	# rand_exp_sampling_replace = True
-		# 	# )
-		# 	# self.optimiser = gp_bandit.EuclideanGPBandit(self.func_caller, ask_tell_mode=True, options=options)
-		# 	# self.optimiser.initialise()
-		# 	if not self.bo_lock == True:
-		# 		pass
-		# 		# param_opt = self.optimiser.ask()
-		# 		# if type(param_opt[1]) == dict:  # return type of nevergrad
-		# 		#     self.param_opt = [i for i in param_opt[0]]
-		# 		# else:
-		# 		#     self.param_opt = param_opt
-		# 	else:
-		# 		assert self.warmup_epi != 0 or self.rotation == True
-		# 		self.param_opt = self.param_opt
 
-		# 	assert len(self.param_opt) == len(param_domain)
-		# else:
-		# 	self.param_opt = param_opt
 
-		self.step_param = [0, 0]
+		self.warmup_epi_counter = 0 
+
+		# self.step_param = [0, 0]
 		self.returns = []
 
 		
@@ -234,35 +219,35 @@ class Trainer:
 					tf.profiler.experimental.start(self._output_dir)
 					profiling = True
 
-			if total_steps < self._policy.n_warmup:
-				action = self._env.action_space.sample()
+			if self.warmup_epi >= 0:
+				# RL first, then BB
+				if total_steps < self._policy.n_warmup:
+					action = self._env.action_space.sample()
+				else:
+					action = self._policy.get_action(obs)
 			else:
-				action = self._policy.get_action(obs)
-
-			# if self.action_mode == "patial" or self.action_mode == "residual":
-			# 	if len(list(self.param_opt)) == 2:
-			# 		self.step_param = self.param_opt
-			# 	elif len(list(self.param_opt)) == 4:
-			# 		assert len(self.step_param) == 2
-			# 		pd_ver = 2
-			# 		if pd_ver == 1:
-			# 			self.step_param[0] = max(self.param_opt[0] + self.param_opt[1] * p_error + self.param_opt[2] * d_error, 0.05)
-			# 			self.step_param[1] = self.param_opt[0] * self.param_opt[3]
-			# 		if pd_ver == 2:
-			# 			self.step_param[1] = max(self.param_opt[0] + self.param_opt[1] * p_error + self.param_opt[2] * d_error, 0.01)
-			# 			self.step_param[0] = self.param_opt[1] * self.param_opt[3]
-			# 	next_obs, reward, done, info = self._env.step(action, param=self.step_param)
-			# elif self.action_mode == "whole":
-			# 	next_obs, reward, done, info = self._env.step(action)
+				# BB first, then RL
+				if n_episode >= - self.warmup_epi:
+					# finished BB training
+					assert(self.bo_lock == True)
+					assert(self.rl_enable == True)
+					if total_steps - self.warmup_steps < self._policy.n_warmup:
+						action = self._env.action_space.sample()
+					else:
+						action = self._policy.get_action(obs)
+				else:
+					# disable RL agent, BB training
+					action = [0]*self._env.action_space.shape[0]
+					assert(self.bo_lock == False)
+					assert(self.rl_enable == False)
+					assert(self.param_update_interval_epi == 1)
 
 			if self.bo:
 				param_opt_to_env = self.param_opt
 			else:
 				param_opt_to_env = None
 
-			# timer12 = time.time()
 			next_obs, reward, done, info = self._env.step(action, param_opt=param_opt_to_env)
-			# print(f"STEPPING TAKES {time.time() - timer12} SEC")
 
 			p_error, d_error = info["p_error"], info["d_error"]
 
@@ -305,11 +290,15 @@ class Trainer:
 				episode_return = 0
 				episode_start_time = time.perf_counter()
 
+				if n_episode == -self.warmup_epi:
+					# finish BB training
+					self.warmup_steps = total_steps
+					self.bo_lock = True
+					self.rl_enable = True
+					# record the number of steps used for BB training (BB-first mode)
+					self.param_opt = [i for i in self.best_x]
+
 				if n_episode % self.param_update_interval_epi == 0 and self.bo and self.param_update_interval_epi != 0 and not self.bo_lock:
-					# if len(self.returns) != 1:
-					#     fit = np.percentile(self.returns[1:], 90)
-					# else:
-					#     fit = np.percentile(self.returns, 90)
 
 					if self.rotation == False:
 						if self.fitting == "training":
@@ -322,12 +311,6 @@ class Trainer:
 
 						if fit > self.best_y:
 							self.best_x, self.best_y = [i for i in self.param_opt], fit
-						# if len(self.param_opt) == 2:
-						# 	self.logger.info("x: [{0:.4f}, {1:.4f}]  y: {2:.4f} Optimal Value: {3:.4f} Optimal Point: [{4:.4f}, {5:.4f}]".format(self.param_opt[0], self.param_opt[1], fit, self.best_y, self.best_x[0], self.best_x[1]) )
-						# if len(self.param_opt) == 4:
-						# 	# print(self.best_x)
-						# 	self.logger.info("X: [{:.4f}, {:.4f}, {:.4f}, {:.4f}]  Y: {:.4f} ".format(self.param_opt[0], self.param_opt[1], self.param_opt[2], self.param_opt[3], fit) )
-						# 	self.logger.info("Optimal Point: [{:.4f}, {:.4f}, {:.4f}, {:.4f}]  Optimal Value: {:.4f}".format(self.best_x[0], self.best_x[1], self.best_x[2], self.best_x[3], self.best_y) )
 
 						self.logger.info("X: [{:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}]  Y: {:.4f} ".format(self.param_opt[0], self.param_opt[1], self.param_opt[2], self.param_opt[3], self.param_opt[4], self.param_opt[5], self.param_opt[6], self.param_opt[7], self.param_opt[8], fit) )
 						self.logger.info("Optimal Point: [{:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}, {:.4f}]  Optimal Value: {:.4f}".format(self.best_x[0], self.best_x[1], self.best_x[2], self.best_x[3], self.best_x[4], self.best_x[5], self.best_x[6], self.best_x[7], self.best_x[8], self.best_y) )
@@ -414,22 +397,6 @@ class Trainer:
 					if self.rotation:
 						self.rl_lock = True
 
-				# print("PROCESSING AFTER AN EPISODE TAKES {:.2f} SEC".format(time.time() - timer1))
-
-				   
-
-			# if (not self.param_update_interval == 0) and total_steps % self.param_update_interval == 0 and self.bo:
-			# 	if len(self.returns) != 1:
-			# 		fit = np.percentile(self.returns[1:], 90)
-			# 	else:
-			# 		fit = np.percentile(self.returns, 90)
-
-			# 	if fit > self.best_y:
-			# 		self.best_x, self.best_y = self.param_opt, fit
-			# 	self.logger.info("[Optimiser] x: [{0:.4f}, {1:.4f}]  y: {2:.4f} Optimal Value: {3:.4f} Optimal Point: [{4:.4f}, {5:.4f}]".format(self.param_opt[0], self.param_opt[1], fit, self.best_y, self.best_x[0], self.best_x[1]) )
-			# 	self.optimiser.tell([(self.param_opt, fit)])
-			# 	self.returns = []
-			# 	self.param_opt = self.optimiser.ask()
 
 
 			if total_steps < self._policy.n_warmup:
