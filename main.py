@@ -32,7 +32,6 @@ else:
 DEBUG = False  # REMEMBER TO TURN IT OFF BEFORE YOU GOING TO SLEEP !!!
 BO = True
 REAL_TIME = False
-RENDER = False #if not DEBUG else True
 ENV_VER = 3
 # FOR SINE/ROSE/LINE GAIT IN THE SIMULATOR
 DOMAIN_RANGE = [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.1]]  # [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5]] # [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5], [0, 0.2], [0, 0.2]]
@@ -97,42 +96,46 @@ if __name__ == '__main__':
 	parser = Trainer.get_argument()
 	parser = SAC.get_argument(parser)
 	parser = TD3.get_argument(parser)
-	parser.add_argument('--fitting-mode', type=str, default=FITTING_MODE)
-	parser.add_argument('--optimiser', type=str, default=OPTIMISER)
-	parser.add_argument('--rotation', action="store_true", default=False)
+	parser.add_argument('--DEBUG', action="store_true", default=False)
+	# args = parser.parse_args()
+	# DEBUG = args.DEBUG
 	parser.add_argument('--action-mode', type=str, default=ACTION_MODE)
-	parser.add_argument('--optimiser-warmup', type=int, default=OPTIMISER_WARMUP if not DEBUG else 500)
 	parser.add_argument('--action-multiplier', type=float, default=ACTION_MULTIPLIER)
-	parser.add_argument('--residual-multiplier', type=float, default=RESIDUAL_MULTIPLIER)
-	parser.add_argument('--leg-multiplier', type=float, default=LEG_MULTIPLIER)
-	parser.add_argument('--residual-with-optimisation', action="store_true", default=False)
-	parser.add_argument('--eval-using-online-param', action="store_true", default=False)
-	parser.add_argument('--state-mode', type=str, default=STATE_MODE)
-	parser.add_argument('--leg-action-mode', type=str, default=LEG_ACTION)
 	parser.add_argument('--arm-pd', action="store_true", default=ARM_PD)
-	parser.add_argument('--profile', action="store_true", default=False)
-	parser.add_argument('--optimisation-mask', type=str, default=OPTIMISATION_MASK)
+	parser.add_argument('--dynamics-setting', type=str, default="easy")  # easy / hard / real (hard+small range)
+	parser.add_argument('--disable-wandb', action="store_true", default=False)
+	parser.add_argument('--eval-using-online-param', action="store_true", default=False)
+	parser.add_argument('--external-force', type=float, default=0)
+	parser.add_argument('--eval-using-online-param', action="store_true", default=False)
+	parser.add_argument('--fitting-mode', type=str, default=FITTING_MODE)
+	parser.add_argument('--fast-error-update', action="store_true", default=True)
 	parser.add_argument('--gait', type=str, default=GAIT)
-	parser.add_argument('--param-update-interval', type=int, default=PARAM_UPDATE_INTERVAL)
+	parser.add_argument('--leg-bootstrapping', action="store_true", default=False)  # be careful. developing!
+	parser.add_argument('--leg-offset-range', type=float, default=0.4)
+	parser.add_argument('--leg-multiplier', type=float, default=LEG_MULTIPLIER)
+	parser.add_argument('--leg-action-mode', type=str, default=LEG_ACTION)
 	parser.add_argument('--num-history-observation', type=int, default=0)
+	parser.add_argument('--num-experiment', type=int, default=1)
+	parser.add_argument('--note', type=str, default="")
+	parser.add_argument('--optimiser', type=str, default=OPTIMISER)
+	parser.add_argument('--optimiser-warmup', type=int, default=OPTIMISER_WARMUP if not DEBUG else 500)
+	parser.add_argument('--optimisation-mask', type=str, default=OPTIMISATION_MASK)
+	parser.add_argument('--only-randomise-dyn', action="store_true", default=False)
+	parser.add_argument('--profile', action="store_true", default=False)
+	parser.add_argument('--param-update-interval', type=int, default=PARAM_UPDATE_INTERVAL)
+	parser.add_argument('--progressing', action="store_true", default=False)
+	parser.add_argument('--policy', type=str, default="SAC")
+	parser.add_argument('--rotation', action="store_true", default=False)
+	parser.add_argument('--residual-multiplier', type=float, default=RESIDUAL_MULTIPLIER)
+	parser.add_argument('--residual-with-optimisation', action="store_true", default=False)
+	parser.add_argument('--reset-mode', type=str, default="stand")
+	parser.add_argument('--robot-k', type=float, default=0.69)
 	parser.add_argument('--randomise', type=float, default=0)
 	parser.add_argument('--randomise-eval', type=float, default=0)
-	parser.add_argument('--only-randomise-dyn', action="store_true", default=False)
-	parser.add_argument('--reset-mode', type=str, default="stand")
-	parser.add_argument('--progressing', action="store_true", default=False)
-	parser.add_argument('--fast-error-update', action="store_true", default=True)
-	parser.add_argument('--leg-bootstrapping', action="store_true", default=False)  # be careful. developing!
-	parser.add_argument('--external-force', type=float, default=0)
-	parser.add_argument('--leg-offset-range', type=float, default=0.4)
-	parser.add_argument('--robot-k', type=float, default=0.69)
-	parser.add_argument('--policy', type=str, default="SAC")
-	parser.add_argument('--dynamics-setting', type=str, default="easy")  # easy / hard / real (hard+small range)
-	parser.add_argument('--eval-using-online-param', action="store_true", default=False)
-	parser.add_argument('--disable-wandb', action="store_true", default=False)
-	parser.add_argument('--note', type=str, default="")
-	parser.add_argument('--num-experiment', type=int, default=1)
+	parser.add_argument('--random-initial', action="store_true", default=False)
+	parser.add_argument('--render', action="store_true", default=False)
+	parser.add_argument('--state-mode', type=str, default=STATE_MODE)
 	args = parser.parse_args()
-
 	parser.set_defaults(batch_size=256)
 	parser.set_defaults(n_warmup=10000 if not DEBUG else 100)
 	parser.set_defaults(max_steps=3e6 if not DEBUG else 2000)
@@ -176,7 +179,10 @@ if __name__ == '__main__':
 	if args.gait == "triangle":  # pay attention that this is for simulation training
 		# FOR TRIANGLE GAIT IN THE SIMULATOR
 		DOMAIN_RANGE = [[0.01, 0.1], [0, 0.1], [0, 0.1], [5, 20], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.1]]
-		INI_GUESS = [0.022, 0, 0, 10, 0.1, 0.1, 0.1, 0.1, 0.02]
+		if not args.random_initial:
+			INI_GUESS = [0.022, 0, 0, 10, 0.1, 0.1, 0.1, 0.1, 0.02]
+		else:
+			INI_GUESS = [np.random.uniform(r[0], r[1]) for r in DOMAIN_RANGE]
 		A_RANGE = (0.1, 2)
 
 
@@ -189,12 +195,18 @@ if __name__ == '__main__':
 		DYN_CONFIG = DYN_CONFIG_HARD3
 		if args.gait == "triangle": 
 			DOMAIN_RANGE = [[0.01, 0.03], [0, 0.1], [0, 0.1], [9, 11], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.02]]
-			INI_GUESS = [0.022, 0, 0, 10, 0.1*0.8, 0.06*0.8, 0.1*0.8, 0.1*0.8, 0.011]
+			if not args.random_initial:
+				INI_GUESS = [0.022, 0, 0, 10, 0.1*0.8, 0.06*0.8, 0.1*0.8, 0.1*0.8, 0.011]
+			else:
+				INI_GUESS = [np.random.uniform(r[0], r[1]) for r in DOMAIN_RANGE]
 			A_RANGE = (0.1, 2)  # seems useless
 		else:
 			DOMAIN_RANGE = [[0.01, 0.03], [0, 0.1], [0, 0.1], [1, 3], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.02]]  
-			INI_GUESS = [0.022, 0, 0, 2, 0.1*0.8, 0.1*0.8, 0.1*0.8, 0.1*0.8, 0.011] 
-			A_RANGE = (0.1, 0.4)  # seems useless
+			if not args.random_initial:
+				INI_GUESS = [0.022, 0, 0, 2, 0.1*0.8, 0.1*0.8, 0.1*0.8, 0.1*0.8, 0.011] 
+			else:
+				INI_GUESS = [np.random.uniform(r[0], r[1]) for r in DOMAIN_RANGE]
+			A_RANGE = (0.01, 0.2)  # seems useless
 
 	else:
 		print("WHAT THE F**K IS ", args.dynamics_setting, " ???")
@@ -215,6 +227,7 @@ if __name__ == '__main__':
 	OPTIMISER_WARMUP = args.optimiser_warmup
 	ACTION_MULTIPLIER = args.action_multiplier
 	RESIDUAL_MULTIPLIER = args.residual_multiplier
+	RENDER = args.render #if not DEBUG else True
 
 	if args.gpu < 0:
 		tf.config.experimental.set_visible_devices([], 'GPU')
