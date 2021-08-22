@@ -33,10 +33,10 @@ DEBUG = False  # REMEMBER TO TURN IT OFF BEFORE YOU GOING TO SLEEP !!!
 BO = True
 REAL_TIME = False
 ENV_VER = 3
-# FOR SINE/ROSE/LINE GAIT IN THE SIMULATOR
-DOMAIN_RANGE = [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.1]]  # [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5]] # [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5], [0, 0.2], [0, 0.2]]
-INI_GUESS = [0.035, 0, 0, 1, 0.1, 0.1, 0.1, 0.1, 0.02] # [0.015, 0, 0, 6, 0.1, 0.1, 0.1, 0.1] # [0.0896, 0.0603, 0.0645, 4.3990] # [0.035, 0, 0, 2.85714, 0.1, 0.1]  # [0.0896, 0.0603, 0.0645, 4.3990] # [0.0712, 0.0777, 0.1463, 2.5790] #[0.036, 0.01, 0.02, 4] #[0.06000, 0.05, 0.12, 2] # [0.0323, 0.0642, 0.0994, 4.5330] #SAC_20210727036  # 
-# Note that these may be overwrote
+# # FOR SINE/ROSE/LINE GAIT IN THE SIMULATOR
+# DOMAIN_RANGE = [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.1]]  # [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5]] # [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5], [0, 0.2], [0, 0.2]]
+# INI_GUESS = [0.035, 0, 0, 1, 0.1, 0.1, 0.1, 0.1, 0.02] # [0.015, 0, 0, 6, 0.1, 0.1, 0.1, 0.1] # [0.0896, 0.0603, 0.0645, 4.3990] # [0.035, 0, 0, 2.85714, 0.1, 0.1]  # [0.0896, 0.0603, 0.0645, 4.3990] # [0.0712, 0.0777, 0.1463, 2.5790] #[0.036, 0.01, 0.02, 4] #[0.06000, 0.05, 0.12, 2] # [0.0323, 0.0642, 0.0994, 4.5330] #SAC_20210727036  # 
+# # Note that these may be overwrote
 
 
 
@@ -45,7 +45,7 @@ INI_GUESS = [0.035, 0, 0, 1, 0.1, 0.1, 0.1, 0.1, 0.02] # [0.015, 0, 0, 6, 0.1, 0
 # INI_GUESS = [0.022, 0, 0, 10, 0.1*0.8, 0.06*0.8, 0.1*0.8, 0.1*0.8, 0.011]
 
 OPTIMISATION_MASK = "100100001"
-INI_STEP_GUESS = [INI_GUESS[0]*INI_GUESS[3], INI_GUESS[0]]
+
 PARAM_UPDATE_INTERVAL = 10
 OPTIMISER_WARMUP = int(3e3)
 FITTING_MODE = "training"
@@ -176,6 +176,16 @@ if __name__ == '__main__':
 						}
 
 
+	# FOR SINE/ROSE/LINE GAIT IN THE SIMULATOR
+	DOMAIN_RANGE = [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.1]]  # [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5]] # [[0.01, 0.1], [0, 0.1], [0, 0.1], [1, 5], [0, 0.2], [0, 0.2]]
+	if not args.random_initial:
+		INI_GUESS = [0.035, 0, 0, 1, 0.1, 0.1, 0.1, 0.1, 0.02] # [0.015, 0, 0, 6, 0.1, 0.1, 0.1, 0.1] # [0.0896, 0.0603, 0.0645, 4.3990] # [0.035, 0, 0, 2.85714, 0.1, 0.1]  # [0.0896, 0.0603, 0.0645, 4.3990] # [0.0712, 0.0777, 0.1463, 2.5790] #[0.036, 0.01, 0.02, 4] #[0.06000, 0.05, 0.12, 2] # [0.0323, 0.0642, 0.0994, 4.5330] #SAC_20210727036  # 
+	else:
+		INI_GUESS = [np.random.uniform(r[0], r[1]) for r in DOMAIN_RANGE]
+	# Note that these may be overwrote
+	INI_STEP_GUESS = [INI_GUESS[0]*INI_GUESS[3], INI_GUESS[0]]
+	# this doesn't matter if it is not in residual parameter mode
+
 	if args.gait == "triangle":  # pay attention that this is for simulation training
 		# FOR TRIANGLE GAIT IN THE SIMULATOR
 		DOMAIN_RANGE = [[0.01, 0.1], [0, 0.1], [0, 0.1], [5, 20], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.1]]
@@ -183,8 +193,7 @@ if __name__ == '__main__':
 			INI_GUESS = [0.022, 0, 0, 10, 0.1, 0.1, 0.1, 0.1, 0.02]
 		else:
 			INI_GUESS = [np.random.uniform(r[0], r[1]) for r in DOMAIN_RANGE]
-		A_RANGE = (0.1, 2)
-
+		A_RANGE = (0.05, 2)  # SOME EXP (0.1, 2). doesn't make sense
 
 
 	if args.dynamics_setting == "easy":
@@ -199,7 +208,7 @@ if __name__ == '__main__':
 				INI_GUESS = [0.022, 0, 0, 10, 0.1*0.8, 0.06*0.8, 0.1*0.8, 0.1*0.8, 0.011]
 			else:
 				INI_GUESS = [np.random.uniform(r[0], r[1]) for r in DOMAIN_RANGE]
-			A_RANGE = (0.1, 2)  # seems useless
+			A_RANGE = (0.09, 2)  # SOME EXP (0.1, 2). doesn't make sense
 		else:
 			DOMAIN_RANGE = [[0.01, 0.03], [0, 0.1], [0, 0.1], [1, 3], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.02]]  
 			if not args.random_initial:
@@ -487,6 +496,8 @@ if __name__ == '__main__':
 
 		if args.optimiser_warmup < 0:
 			name = name  + "[BBF]"
+		if args.random_initial:
+			name = name  + "[RIni]"
 
 
 		if OLD:
