@@ -498,6 +498,8 @@ if __name__ == '__main__':
 			name = name  + "[BBF]"
 		if args.random_initial:
 			name = name  + "[RIni]"
+		if args.state_mode[-2:] == "il":
+			name = name  + "[TEST]"
 
 
 		if OLD:
