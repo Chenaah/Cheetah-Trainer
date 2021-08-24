@@ -220,7 +220,7 @@ class OnPolicyTrainer(Trainer):
 							log_file.write('\n')
 						if self.bo:
 							np.save(os.path.join(self._output_dir, "best_models", "optimal_parameters"), self.best_x if self.best_x is not None else self.param_opt)
-							np.save(os.path.join(self._output_dir, "best_models", "online_optimal_parameters"), self.param_opt)
+							np.save(os.path.join(self._output_dir, "best_models", "optimal_parameters_online"), self.param_opt)
 
 				if total_steps % self._save_model_interval == 0:
 					self.checkpoint_manager.save()

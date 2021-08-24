@@ -31,7 +31,7 @@ if not OLD:
 else:
 	from old_dog import Dog
 
-DEBUG = True  # REMEMBER TO TURN IT OFF BEFORE YOU GOING TO SLEEP !!!
+DEBUG = False  # REMEMBER TO TURN IT OFF BEFORE YOU GOING TO SLEEP !!!
 BO = True
 REAL_TIME = False
 ENV_VER = 3
@@ -186,6 +186,7 @@ if __name__ == '__main__':
 		INI_GUESS = [0.035, 0, 0, 1, 0.1, 0.1, 0.1, 0.1, 0.02] # [0.015, 0, 0, 6, 0.1, 0.1, 0.1, 0.1] # [0.0896, 0.0603, 0.0645, 4.3990] # [0.035, 0, 0, 2.85714, 0.1, 0.1]  # [0.0896, 0.0603, 0.0645, 4.3990] # [0.0712, 0.0777, 0.1463, 2.5790] #[0.036, 0.01, 0.02, 4] #[0.06000, 0.05, 0.12, 2] # [0.0323, 0.0642, 0.0994, 4.5330] #SAC_20210727036  # 
 	else:
 		INI_GUESS = [np.random.uniform(r[0], r[1]) for r in DOMAIN_RANGE]
+		INI_GUESS[1], INI_GUESS[2] = 0, 0
 	# Note that these may be overwrote
 	INI_STEP_GUESS = [INI_GUESS[0]*INI_GUESS[3], INI_GUESS[0]]
 	# this doesn't matter if it is not in residual parameter mode
@@ -197,6 +198,7 @@ if __name__ == '__main__':
 			INI_GUESS = [0.022, 0, 0, 10, 0.1, 0.1, 0.1, 0.1, 0.02]
 		else:
 			INI_GUESS = [np.random.uniform(r[0], r[1]) for r in DOMAIN_RANGE]
+			INI_GUESS[1], INI_GUESS[2] = 0, 0
 		A_RANGE = (0.05, 2)  # SOME EXP (0.1, 2). doesn't make sense
 
 
@@ -212,6 +214,7 @@ if __name__ == '__main__':
 				INI_GUESS = [0.022, 0, 0, 10, 0.1*0.8, 0.06*0.8, 0.1*0.8, 0.1*0.8, 0.011]
 			else:
 				INI_GUESS = [np.random.uniform(r[0], r[1]) for r in DOMAIN_RANGE]
+				INI_GUESS[1], INI_GUESS[2] = 0, 0
 			A_RANGE = (0.09, 2)  # SOME EXP (0.1, 2). doesn't make sense
 		else:
 			DOMAIN_RANGE = [[0.01, 0.03], [0, 0.1], [0, 0.1], [1, 3], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.02]]  
@@ -219,6 +222,7 @@ if __name__ == '__main__':
 				INI_GUESS = [0.022, 0, 0, 2, 0.1*0.8, 0.1*0.8, 0.1*0.8, 0.1*0.8, 0.011] 
 			else:
 				INI_GUESS = [np.random.uniform(r[0], r[1]) for r in DOMAIN_RANGE]
+				INI_GUESS[1], INI_GUESS[2] = 0, 0
 			A_RANGE = (0.01, 0.2)  # seems useless
 
 	elif args.dynamics_setting == "ereal":
@@ -230,6 +234,7 @@ if __name__ == '__main__':
 				INI_GUESS = [0.022, 0, 0, 10, 0.1*0.8, 0.06*0.8, 0.1*0.8, 0.1*0.8, 0.011]
 			else:
 				INI_GUESS = [np.random.uniform(r[0], r[1]) for r in DOMAIN_RANGE]
+				INI_GUESS[1], INI_GUESS[2] = 0, 0
 			A_RANGE = (0.09, 2)  # SOME EXP (0.1, 2). doesn't make sense
 		else:
 			DOMAIN_RANGE = [[0.01, 0.03], [0, 0.1], [0, 0.1], [1, 3], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.02]]  
@@ -237,6 +242,7 @@ if __name__ == '__main__':
 				INI_GUESS = [0.022, 0, 0, 2, 0.1*0.8, 0.1*0.8, 0.1*0.8, 0.1*0.8, 0.011] 
 			else:
 				INI_GUESS = [np.random.uniform(r[0], r[1]) for r in DOMAIN_RANGE]
+				INI_GUESS[1], INI_GUESS[2] = 0, 0
 			A_RANGE = (0.01, 0.2)  # seems useless
 
 
@@ -278,11 +284,13 @@ if __name__ == '__main__':
 		if os.path.isfile(os.path.join(args.model_dir, 'env_config.pkl')):
 			with open(os.path.join(args.model_dir, 'env_config.pkl'), 'rb') as f:
 				env_args = pickle.load(f)
+				# overwrite some arguments for evaluation
 				env_args["render"] = True
 				
 		elif os.path.isfile(os.path.join(args.model_dir, os.pardir, 'env_config.pkl')):
 			with open(os.path.join(args.model_dir, os.pardir, 'env_config.pkl'), 'rb') as f:
 				env_args = pickle.load(f)
+				# overwrite some arguments for evaluation
 				env_args["render"] = True
 		else:
 			# FOR THE PREVIOUS EXPERIMENT THAT PARAMETERS ARE NOT SAVED
@@ -301,16 +309,6 @@ if __name__ == '__main__':
 			with open(os.path.join(args.model_dir, os.pardir, 'env_dynamics_config.pkl'), 'rb') as f:
 				DYN_CONFIG = pickle.load(f)
 		else:
-			# DYN_CONFIG = {'lateralFriction_toe': 0.6447185797960826, 
-			#   'lateralFriction_shank': 0.6447185797960826  *  (0.351/0.512),
-			#   'contactStiffness': 2157.4863390669952, 
-			#   'contactDamping': 32.46233575737161, 
-			#   'linearDamping': 0.03111169082496665, 
-			#   'angularDamping': 0.04396695866661371, 
-			#   'jointDamping': 0.03118494025640309, 
-			#   # 'w_y_offset': 0.0021590823485152914
-			#   }
-
 			DYN_CONFIG = {'lateralFriction_toe': 1, # 0.6447185797960826, 
 						  'lateralFriction_shank': 0.737, #0.6447185797960826  *  (0.351/0.512),
 						  'contactStiffness': 4173, #2157.4863390669952, 

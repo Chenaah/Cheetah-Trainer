@@ -159,8 +159,6 @@ class Trainer:
 			self.logger.info("PARAMETERS OPTIMISATION BEGINS!")
 			self._setup_optimiser()
 
-
-
 		self.warmup_epi_counter = 0 
 
 		# self.step_param = [0, 0]
@@ -180,8 +178,8 @@ class Trainer:
 			self._latest_path_ckpt = tf.train.latest_checkpoint(model_dir)
 			self._checkpoint.restore(self._latest_path_ckpt)
 			self.logger.info("Restored {}".format(self._latest_path_ckpt))
-			model_save_dir = os.path.join(model_dir, "actor_model_dis")
-			if not os.path.isdir(model_save_dir) and model_dir[-1] == 'F':
+			model_save_dir = os.path.join(model_dir, "DAM")
+			if not os.path.isdir(model_save_dir): # and (model_dir[-1] == 'F' or os.path.basename(os.path.normpath(model_dir)) == "best_models"):
 				os.mkdir(model_save_dir)
 				s_dim = self._env.observation_space.shape[0]  # this assumes that the config has been restored to the environment
 				self._policy.save_actor(model_save_dir, s_dim=s_dim) 
@@ -435,10 +433,12 @@ class Trainer:
 					self.best_evaluation = avg_test_return
 					self.best_checkpoint_manager.save()
 					with open(os.path.join(self._output_dir, "best_models", "log.txt"), 'a') as log_file:
-						log_file.write(f"Total Steps: {total_steps}    Global Total Step: {self.global_total_steps}    Best Evaluation Return: {avg_test_return}    Evaluation Episode Length: {avg_test_steps}    Parameters: {self.best_x if self.best_x is not None else self.param_opt}")
+						log_file.write(f"Total Steps: {total_steps}    Global Total Step: {self.global_total_steps}    Best Evaluation Return: {avg_test_return}    Evaluation Episode Length: {avg_test_steps}    Parameters: {self.param_opt}    Best Parameters: {self.best_x if self.best_x is not None else self.param_opt}")
 						log_file.write('\n')
 					if self.bo:
 						np.save(os.path.join(self._output_dir, "best_models", "optimal_parameters"), self.best_x if self.best_x is not None else self.param_opt)
+						np.save(os.path.join(self._output_dir, "best_models", "optimal_parameters_online"), self.param_opt)
+
 
 
 			if total_steps % self._save_model_interval == 0:
@@ -532,6 +532,13 @@ class Trainer:
 
 		if self.param_opt_testing is not None:
 			self.best_x = self.param_opt = self.param_opt_testing
+		elif os.path.isfile(os.path.join(self._model_dir, "optimal_parameters_online.npy")) and self.eval_using_online_param:
+			self.best_x = self.param_opt = list(np.load(os.path.join(self._model_dir, "optimal_parameters_online.npy")))
+			self.logger.info("Restored {}".format(os.path.join(self._model_dir, "optimal_parameters_online.npy")))
+			print("========================================================")
+			print("Restored Optimised Parameters: ")
+			print(self.param_opt)
+			print("========================================================")
 		elif os.path.isfile(os.path.join(self._model_dir, "optimal_parameters.npy")):
 			self.best_x = self.param_opt = list(np.load(os.path.join(self._model_dir, "optimal_parameters.npy")))
 			self.logger.info("Restored {}".format(os.path.join(self._model_dir, "optimal_parameters.npy")))
@@ -543,6 +550,18 @@ class Trainer:
 			# self.best_x = [0.0793, 0.0565, 0.0687, 5.4652]  # TEMP  # TODO!!!
 		else:
 			self.best_x = self.param_opt = self._test_env.param_opt
+
+		assert os.path.isdir(os.path.join(self._model_dir, "DAM"))
+		# print("[DEBUG] ", os.path.join(self._model_dir, "DAM", "param_opt.conf"), " EXIST?? ", os.path.isfile(os.path.join(self._model_dir, "DAM", "param_opt.conf")))
+		if not os.path.isfile(os.path.join(self._model_dir, "DAM", "param_opt.conf")):
+			with open(os.path.join(self._model_dir, "DAM", "param_opt.conf"),"a") as f:
+				f.write(self._test_env.gait)
+				f.write("\n")
+				for p in self.param_opt:
+					f.write(str(p))
+					f.write("\n")
+				f.write(f"The actor model is generated from {self._model_dir}")
+
 
 		# self.evaluate_policy(total_steps=0)
 		while True:

@@ -5,7 +5,7 @@ from tensorflow.keras.layers import Dense
 
 from tf2rl.algos.policy_base import OffPolicyAgent
 from tf2rl.misc.target_update_ops import update_target_variables
-from tf2rl.policies.tfp_gaussian_actor import GaussianActor
+from tfp_gaussian_actor import GaussianActor
 
 
 class CriticQ(tf.keras.Model):
