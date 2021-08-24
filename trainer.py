@@ -249,7 +249,7 @@ class Trainer:
 
 			next_obs, reward, done, info = self._env.step(action, param_opt=param_opt_to_env)
 
-			p_error, d_error = info["p_error"], info["d_error"]
+			# p_error, d_error = info["p_error"], info["d_error"]
 
 			if self._show_progress:
 				self._env.render()
@@ -269,7 +269,7 @@ class Trainer:
 
 			if done or episode_steps == self._episode_max_steps:
 
-				timer1 = time.time()
+				# timer1 = time.time()
 
 				replay_buffer.on_episode_end()
 				obs = self._env.reset()

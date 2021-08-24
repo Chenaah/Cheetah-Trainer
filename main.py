@@ -11,7 +11,9 @@ import tensorflow as tf
 from tf2rl.envs.utils import is_discrete, get_act_dim
 from sac import SAC
 from tf2rl.algos.td3 import TD3
+from tf2rl.algos.ppo import PPO
 from trainer import Trainer
+from on_policy_trainer import OnPolicyTrainer
 from pureBB import BBTrainer
 import wandb
 import pickle
@@ -29,7 +31,7 @@ if not OLD:
 else:
 	from old_dog import Dog
 
-DEBUG = False  # REMEMBER TO TURN IT OFF BEFORE YOU GOING TO SLEEP !!!
+DEBUG = True  # REMEMBER TO TURN IT OFF BEFORE YOU GOING TO SLEEP !!!
 BO = True
 REAL_TIME = False
 ENV_VER = 3
@@ -93,12 +95,13 @@ PARAM_OPT_FOR_TESTING = None
 
 
 if __name__ == '__main__':
+	parser = OnPolicyTrainer.get_argument()
+	parser = PPO.get_argument(parser)
 	parser = Trainer.get_argument()
 	parser = SAC.get_argument(parser)
 	parser = TD3.get_argument(parser)
+
 	parser.add_argument('--DEBUG', action="store_true", default=False)
-	# args = parser.parse_args()
-	# DEBUG = args.DEBUG
 	parser.add_argument('--action-mode', type=str, default=ACTION_MODE)
 	parser.add_argument('--action-multiplier', type=float, default=ACTION_MULTIPLIER)
 	parser.add_argument('--arm-pd', action="store_true", default=ARM_PD)
@@ -140,6 +143,7 @@ if __name__ == '__main__':
 	parser.set_defaults(n_warmup=10000 if not DEBUG else 100)
 	parser.set_defaults(max_steps=3e6 if not DEBUG else 2000)
 	parser.set_defaults(episode_max_steps=2000 if args.progressing else 1000)
+	parser.set_defaults(horizon=2048)
 	if DEBUG:
 		parser.set_defaults(test_interval=1001)  # FOR DEBUGGING
 	# parser.set_defaults(model_dir="results/20210707T121014.071938_SAC_") // VERSION 1
@@ -240,8 +244,6 @@ if __name__ == '__main__':
 		print("WHAT THE F**K IS ", args.dynamics_setting, " ???")
 
 
-
-	
 	if DEBUG:
 		WANDB = False
 
@@ -332,18 +334,6 @@ if __name__ == '__main__':
 
 
 
-	# env_args = {"render": True, "fix_body": False, "real_time": False, "immortal": False, 
-	# 			"version": 3, "normalised_abduct": True, "mode": "stand", "debug_tuner_enable" : False, "action_mode":"residual", 
-	# 			"state_mode":"body_arm_leg_full", "leg_action_mode":"hips_offset",
-	# 			"tuner_enable": False, "action_tuner_enable": False, "A_range": (0.1, 0.5), "B_range": (0.01, 0.1), "gait": "triangle",
-	# 			"arm_pd_control": True, "fast_error_update": True, "leg_offset_multiplier" : 0.1,
-	# 			"custom_dynamics": DYN_CONFIG,
-	# 			"mode": "standup", "randomise": True
-	# 			}
-
-	# assert env_args["gait"] == "triangle"
-
-
 	env = Dog(**env_args)
 	if not args.evaluate:
 		env_args["render"] = False
@@ -383,6 +373,30 @@ if __name__ == '__main__':
 			# auto_alpha=args.auto_alpha,
 			actor_units=(256, 256) if args.num_history_observation==0 else (256, 256, 256),
 			critic_units=(256, 256) if args.num_history_observation==0 else (256, 256, 256))
+	elif args.policy =="PPO":
+
+		policy = PPO(
+			state_shape=env.observation_space.shape,
+			action_dim=env.action_space.high.size,
+			is_discrete=False,
+			max_action=env.action_space.high[0],
+			batch_size=args.batch_size,
+			actor_units=(256, 256),
+			critic_units=(256, 256),
+			n_epoch=10,
+			lr_actor=3e-4,
+			lr_critic=3e-4,
+			hidden_activation_actor="tanh",
+			hidden_activation_critic="tanh",
+			discount=0.99,
+			lam=0.95,
+			entropy_coef=0.,
+			horizon=args.horizon,
+			normalize_adv=False,
+			enable_gae=False,
+			gpu=args.gpu)
+
+
 	elif args.policy =="none":
 		pass
 	else:
@@ -400,8 +414,28 @@ if __name__ == '__main__':
 		print("========================================================")
 		print("")
 
-		if not args.policy == "none":
+		if args.policy == "none":
+			trainer = BBTrainer(env, args, test_env=test_env, param_opt=INI_GUESS, param_domain=DOMAIN_RANGE, optimisation_mask=args.optimisation_mask, optimiser=args.optimiser, max_steps=3e6,
+								eval_using_online_param=args.eval_using_online_param)
 
+		elif args.policy == "PPO":
+			trainer = OnPolicyTrainer(policy, env, args, test_env=test_env, 
+									  bo = BO,
+									  param_domain = DOMAIN_RANGE,  # if the length is 4, they stand for [A, Kp, Kd, B factor]  v2: [B, Kp, Kd, A factor]     # param_domain = [[0.3, 0.6], [0.02, 0.1]],
+									  param_opt = INI_GUESS, # [0.1000, 0.0635], # [0.1188, 0.0607], # [0.12, 0.0389], #[0.2, 0.0389],
+									  param_update_interval_epi = args.param_update_interval,
+									  warmup_epi = args.optimiser_warmup if not DEBUG else 3,
+									  fitting = FITTING_MODE,
+									  optimiser = args.optimiser,
+									  rotation = args.rotation,
+									  debug = DEBUG,
+									  profiler_enable = args.profile,
+									  optimisation_mask = args.optimisation_mask,
+									  param_opt_testing = PARAM_OPT_FOR_TESTING,
+									  eval_using_online_param = args.eval_using_online_param,
+									  DEBUG = DEBUG)
+
+		else:
 			trainer = Trainer(policy, env, args, test_env=test_env, 
 							  bo = BO,
 							  param_domain = DOMAIN_RANGE,  # if the length is 4, they stand for [A, Kp, Kd, B factor]  v2: [B, Kp, Kd, A factor]     # param_domain = [[0.3, 0.6], [0.02, 0.1]],
@@ -418,10 +452,7 @@ if __name__ == '__main__':
 							  eval_using_online_param = args.eval_using_online_param,
 							  DEBUG = DEBUG)
 
-		else:
-
-			trainer = BBTrainer(env, args, test_env=test_env, param_opt=INI_GUESS, param_domain=DOMAIN_RANGE, optimisation_mask=args.optimisation_mask, optimiser=args.optimiser, max_steps=3e6,
-								eval_using_online_param=args.eval_using_online_param)
+		
 
 		if not args.evaluate:
 			with open(os.path.join(trainer._output_dir, "env_config.pkl"), 'wb') as f:
@@ -516,10 +547,11 @@ if __name__ == '__main__':
 			name = name  + "[EReal]"
 
 
-		if args.optimiser_warmup < 0:
-			name = name  + "[BBF]"
+		
 		if args.random_initial:
 			name = name  + "[RIni]"
+		if args.optimiser_warmup < 0:
+			name = name  + "[BBF]"
 		if args.state_mode[-2:] == "il":
 			name = name  + "[TEST]"
 
