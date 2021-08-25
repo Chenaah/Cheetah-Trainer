@@ -171,4 +171,6 @@ class BBTrainer(object):
 	class DummyPolicy():
 		def __init__(self):
 			self.policy_name = "None"
-
+			
+		def save_actor(self, save_dir, s_dim):
+			pass

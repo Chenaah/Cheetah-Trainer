@@ -31,7 +31,7 @@ if not OLD:
 else:
 	from old_dog import Dog
 
-DEBUG = False  # REMEMBER TO TURN IT OFF BEFORE YOU GOING TO SLEEP !!!
+DEBUG = True  # REMEMBER TO TURN IT OFF BEFORE YOU GOING TO SLEEP !!!
 BO = True
 REAL_TIME = False
 ENV_VER = 3

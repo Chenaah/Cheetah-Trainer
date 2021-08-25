@@ -214,6 +214,8 @@ class OnPolicyTrainer(Trainer):
 
 					if avg_test_return > self.best_evaluation:
 						self.best_evaluation = avg_test_return
+						self.param_opt_best_eval = [i for i in self.param_opt]
+
 						self.best_checkpoint_manager.save()
 						with open(os.path.join(self._output_dir, "best_models", "log.txt"), 'a') as log_file:
 							log_file.write(f"Total Steps: {total_steps}    Global Total Step: {self.global_total_steps}    Best Evaluation Return: {avg_test_return}    Evaluation Episode Length: {avg_test_steps}    Parameters: {self.param_opt}    Best Parameters: {self.best_x if self.best_x is not None else self.param_opt}")
@@ -264,6 +266,33 @@ class OnPolicyTrainer(Trainer):
 							returns=samples["ret"][target])
 
 		tf.summary.flush()
+
+		model_save_dir = os.path.join(self._output_dir, "DAM")
+		if not os.path.isdir(model_save_dir):
+			os.mkdir(model_save_dir)
+			s_dim = self._env.observation_space.shape[0]
+			self._policy.save_actor(model_save_dir, s_dim=s_dim) 
+		if not os.path.isfile(os.path.join(model_save_dir, "param_opt.conf")):
+			with open(os.path.join(model_save_dir, "param_opt.conf"),"a") as f:
+				f.write(self._test_env.gait)
+				f.write("\n")
+				for p in self.param_opt:
+					f.write(str(p))
+					f.write("\n")
+				f.write(f"The actor model is generated from {self._output_dir}")
+
+		if os.path.isdir(os.path.join(self._output_dir, "best_models")):
+			self._set_check_point(model_dir = os.path.join(self._output_dir, "best_models"))
+			if not os.path.isfile(os.path.join(self._output_dir, "best_models", "DAM", "param_opt.conf")):
+				with open(os.path.join(self._output_dir, "best_models", "DAM", "param_opt.conf"),"a") as f:
+					f.write(self._test_env.gait)
+					f.write("\n")
+					for p in self.param_opt_best_eval:
+						f.write(str(p))
+						f.write("\n")
+					f.write(f"The actor model is generated from {self._output_dir}")
+					
+		os.rename(self._output_dir, self._output_dir + "F")
 
 	def finish_horizon(self, last_val=0):
 		self.local_buffer.on_episode_end()
