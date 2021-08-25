@@ -31,7 +31,7 @@ if not OLD:
 else:
 	from old_dog import Dog
 
-DEBUG = True  # REMEMBER TO TURN IT OFF BEFORE YOU GOING TO SLEEP !!!
+DEBUG = False  # REMEMBER TO TURN IT OFF BEFORE YOU GOING TO SLEEP !!!
 BO = True
 REAL_TIME = False
 ENV_VER = 3
@@ -238,6 +238,26 @@ if __name__ == '__main__':
 			A_RANGE = (0.09, 2)  # SOME EXP (0.1, 2). doesn't make sense
 		else:
 			DOMAIN_RANGE = [[0.01, 0.03], [0, 0.1], [0, 0.1], [1, 3], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.02]]  
+			if not args.random_initial:
+				INI_GUESS = [0.022, 0, 0, 2, 0.1*0.8, 0.1*0.8, 0.1*0.8, 0.1*0.8, 0.011] 
+			else:
+				INI_GUESS = [np.random.uniform(r[0], r[1]) for r in DOMAIN_RANGE]
+				INI_GUESS[1], INI_GUESS[2] = 0, 0
+			A_RANGE = (0.01, 0.2)  # seems useless
+
+	elif args.dynamics_setting == "ereal2":
+		# easy dynamics, but small range (a bit larger)
+		DYN_CONFIG = DYN_CONFIG0
+		if args.gait == "triangle": 
+			DOMAIN_RANGE = [[0.00, 0.03], [0, 0.1], [0, 0.1], [8, 11], [0.00, 0.1], [0.00, 0.1], [0.00, 0.1], [0.00, 0.1], [0, 0.05]]
+			if not args.random_initial:
+				INI_GUESS = [0.022, 0, 0, 10, 0.1*0.8, 0.06*0.8, 0.1*0.8, 0.1*0.8, 0.011]
+			else:
+				INI_GUESS = [np.random.uniform(r[0], r[1]) for r in DOMAIN_RANGE]
+				INI_GUESS[1], INI_GUESS[2] = 0, 0
+			A_RANGE = (0.09, 2)  # SOME EXP (0.1, 2). doesn't make sense
+		else:
+			DOMAIN_RANGE = [[0.00, 0.03], [0, 0.1], [0, 0.1], [0, 3], [0.00, 0.1], [0.00, 0.1], [0.00, 0.1], [0.00, 0.1], [0, 0.05]]  
 			if not args.random_initial:
 				INI_GUESS = [0.022, 0, 0, 2, 0.1*0.8, 0.1*0.8, 0.1*0.8, 0.1*0.8, 0.011] 
 			else:
@@ -543,6 +563,8 @@ if __name__ == '__main__':
 			name = name  + "[Real]"
 		elif args.dynamics_setting == "ereal":
 			name = name  + "[EReal]"
+		elif args.dynamics_setting == "ereal2":
+			name = name  + "[ER2]"
 
 
 		
