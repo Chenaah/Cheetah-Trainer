@@ -66,6 +66,7 @@ class BBTrainer(object):
 		self.log_dir = os.path.join(log_dir, "PBB_{}{:03d}".format(int(time.strftime("%Y%m%d", time.localtime())), run_i))
 		if not os.path.isdir(self.log_dir) :
 			os.mkdir(self.log_dir)
+			
 		self._output_dir = self.log_dir
 		# config = {"optimiser": OPTIMISER, "initial_guess": self.best_guess, "domains": self.domains, "budget": BUDGET, "log_directory": self.log_dir, "PD_ver": PD_VER}
 		# for conf in DYN_CONFIG:
@@ -143,6 +144,16 @@ class BBTrainer(object):
 				self._save()
 
 
+		os.mkdir(os.path.join(self.log_dir, "DAM"))
+		with open(os.path.join(os.path.join(self.log_dir, "DAM"), "param_opt.conf"),"a") as f:
+			f.write(self._env.gait)
+			f.write("\n")
+			for p in self.best_x:
+				f.write(str(p))
+				f.write("\n")
+			f.write(f"The actor model is generated from {self.log_dir}")
+
+
 	def evaluate_policy(self):
 
 		total_return = 0
@@ -171,6 +182,6 @@ class BBTrainer(object):
 	class DummyPolicy():
 		def __init__(self):
 			self.policy_name = "None"
-			
+
 		def save_actor(self, save_dir, s_dim):
 			pass
