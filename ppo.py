@@ -109,11 +109,13 @@ class PPO(VPG):
 
         return actor_loss, logp_news, ratio, ent
 
-    def save_actor(self, save_dir="actor_model_dis", s_dim=14):
-        print("===========================================" )
-        fake_state = np.array([0.5]*s_dim)
+    def save_actor(self, save_dir="DAM", s_dim=14):
+        print("================ DAM SAVER ================" )
+        fake_state = np.array([0]*s_dim)
         fake_state = np.expand_dims(fake_state, axis=0)
         fake_state = tf.constant(fake_state)
-        _ = self.actor(fake_state)
+        checking_action = self.actor(fake_state)
         self.actor.save(save_dir, save_format='tf')
-        print("================== SAVED ==================" )
+        print("Checking Action:")
+        print(checking_action)
+        print("===========================================" )

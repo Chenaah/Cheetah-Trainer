@@ -75,15 +75,17 @@ class SAC(OffPolicyAgent):
             state_shape, action_dim, max_action, squash=True, units=actor_units)
         self.actor_optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
-    def save_actor(self, save_dir="actor_model_dis", s_dim=14):
-        print("===========================================" )
+    def save_actor(self, save_dir="DAM", s_dim=14):
+        print("================ DAM SAVER ================" )
         self.actor.test = True
-        fake_state = np.array([0.5]*s_dim)
+        fake_state = np.array([0]*s_dim)
         fake_state = np.expand_dims(fake_state, axis=0)
         fake_state = tf.constant(fake_state)
-        _ = self.actor(fake_state)
+        checking_action = self.actor(fake_state)
         self.actor.save(save_dir, save_format='tf')
-        print("================== SAVED ==================" )
+        print("Checking Action:")
+        print(checking_action)
+        print("===========================================" )
 
     def _setup_critic_q(self, state_shape, action_dim, critic_units, lr):
         self.qf1 = CriticQ(state_shape, action_dim, critic_units, name="qf1")
