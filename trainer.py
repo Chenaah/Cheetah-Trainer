@@ -163,6 +163,7 @@ class Trainer:
 
 		# self.step_param = [0, 0]
 		self.returns = []
+		self.eval_returns = []
 
 		assert hasattr(self._policy, "save_actor")
 		
@@ -429,6 +430,7 @@ class Trainer:
 				tf.summary.scalar(name="Common/fps", data=fps)
 
 				wandb.log({f"Evaluation Return": avg_test_return, "Evaluation Episode Length": avg_test_steps}, step=self.global_total_steps)
+				self.eval_returns.append(avg_test_return)
 
 				if avg_test_return > self.best_evaluation:
 					self.best_evaluation = avg_test_return
@@ -451,7 +453,7 @@ class Trainer:
 					if profiling:
 						tf.profiler.experimental.stop()
 						profiling = False
-
+				np.save(os.path.join(self._output_dir, "eval_returns"), self.eval_returns)
 				
 				# with open(os.path.join(self._output_dir, 'param_optimiser.pkl'), 'wb') as outp:
 				#     pickle.dump(self.optimiser, outp, pickle.HIGHEST_PROTOCOL)

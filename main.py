@@ -598,6 +598,9 @@ if __name__ == '__main__':
 		wandb_dir = os.path.abspath(wandb_dir)
 		wandb.init(config=config, project="Standing Cheetah", name=name, dir=wandb_dir, mode="disabled" if args.evaluate or not WANDB or args.disable_wandb else "online", notes=args.note)
 
+		with open(os.path.join(trainer._output_dir, "wandb_path"), 'a') as wandb_path_file:
+			wandb_path_file.write(wandb.run.path)
+			
 		if args.evaluate or args.model_dir is not None:
 			trainer.evaluate_policy_continuously()
 		else:
