@@ -164,6 +164,7 @@ class Trainer:
 		# self.step_param = [0, 0]
 		self.returns = []
 
+		assert hasattr(self._policy, "save_actor")
 		
 	def _set_check_point(self, model_dir):
 		# Save and restore model

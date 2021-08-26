@@ -10,8 +10,8 @@ import random
 import tensorflow as tf
 from tf2rl.envs.utils import is_discrete, get_act_dim
 from sac import SAC
-from tf2rl.algos.td3 import TD3
-from tf2rl.algos.ppo import PPO
+from td3 import TD3
+from ppo import PPO
 from trainer import Trainer
 from on_policy_trainer import OnPolicyTrainer
 from pureBB import BBTrainer
@@ -497,7 +497,7 @@ if __name__ == '__main__':
 		config = {}
 		config["experiment/log_directory"] = trainer._output_dir
 		config["experiment/env_version"] = ENV_VER
-		# config["experiment/action_mode"] = ACTION_MODE
+		# config["experiment/hasattraction_mode"] = ACTION_MODE
 		for conf in DYN_CONFIG:
 			config["dynamics/"+conf] = DYN_CONFIG[conf]
 		parser_dict = vars(args)
