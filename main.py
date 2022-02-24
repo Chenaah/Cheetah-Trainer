@@ -46,7 +46,7 @@ ENV_VER = 3
 # DOMAIN_RANGE = [[0.01, 0.03], [0, 0.1], [0, 0.1], [9, 11], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0.04, 0.1], [0, 0.02]]
 # INI_GUESS = [0.022, 0, 0, 10, 0.1*0.8, 0.06*0.8, 0.1*0.8, 0.1*0.8, 0.011]
 
-OPTIMISATION_MASK = "100100001"
+OPTIMISATION_MASK = "100111111"
 
 PARAM_UPDATE_INTERVAL = 10
 OPTIMISER_WARMUP = int(3e3)
@@ -62,8 +62,8 @@ A_RANGE = (0.1, 0.5)
 B_RANGE = (float("-inf"), float("inf"))
 ARM_PD = True
 FAST_CONTROL = True
-STATE_MODE = ["body_arm_p" , "body_arm_leg_full_p", "body_arm_leg_full", "h_body_arm"][0]
-LEG_ACTION = ["none", "parallel_offset", "hips_offset", "knees_offset", "hips_knees_offset"][0]
+STATE_MODE = ["body_arm_p" , "body_arm_leg_full_p", "body_arm_leg_full", "h_body_arm"][2]
+LEG_ACTION = ["none", "parallel_offset", "hips_offset", "knees_offset", "hips_knees_offset"][2]
 GAIT = ["sine", "rose", "triangle", "line"][0]
 
 # SIMULATION FRIENDLY CONFIGERATION
@@ -103,25 +103,24 @@ if __name__ == '__main__':
 
 	parser.add_argument('--DEBUG', action="store_true", default=False)
 	parser.add_argument('--action-mode', type=str, default=ACTION_MODE)
-	parser.add_argument('--action-multiplier', type=float, default=ACTION_MULTIPLIER)
+	parser.add_argument('--action-multiplier', type=float, default=0.4)
 	parser.add_argument('--arm-pd', action="store_true", default=ARM_PD)
-	parser.add_argument('--dynamics-setting', type=str, default="easy")  # easy / hard / real (hard+small range)
+	parser.add_argument('--dynamics-setting', type=str, default="ereal2")  # easy / hard / real (hard+small range)
 	parser.add_argument('--disable-wandb', action="store_true", default=False)
-	parser.add_argument('--eval-using-online-param', action="store_true", default=False)
+	parser.add_argument('--eval-using-online-param', action="store_true", default=True)
 	parser.add_argument('--external-force', type=float, default=0)
-	parser.add_argument('--eval-using-online-param', action="store_true", default=False)
 	parser.add_argument('--fitting-mode', type=str, default=FITTING_MODE)
 	parser.add_argument('--fast-error-update', action="store_true", default=True)
 	parser.add_argument('--gait', type=str, default=GAIT)
 	parser.add_argument('--leg-bootstrapping', action="store_true", default=False)  # be careful. developing!
-	parser.add_argument('--leg-offset-range', type=float, default=0.4)
-	parser.add_argument('--leg-multiplier', type=float, default=LEG_MULTIPLIER)
+	parser.add_argument('--leg-offset-range', type=float, default=0.6)
+	parser.add_argument('--leg-multiplier', type=float, default=0.1)
 	parser.add_argument('--leg-action-mode', type=str, default=LEG_ACTION)
 	parser.add_argument('--num-history-observation', type=int, default=0)
 	parser.add_argument('--num-experiment', type=int, default=1)
 	parser.add_argument('--note', type=str, default="")
 	parser.add_argument('--optimiser', type=str, default=OPTIMISER)
-	parser.add_argument('--optimiser-warmup', type=int, default=OPTIMISER_WARMUP if not DEBUG else 500)
+	parser.add_argument('--optimiser-warmup', type=int, default=1000 if not DEBUG else 500)
 	parser.add_argument('--optimisation-mask', type=str, default=OPTIMISATION_MASK)
 	parser.add_argument('--only-randomise-dyn', action="store_true", default=False)
 	parser.add_argument('--profile', action="store_true", default=False)
@@ -130,12 +129,12 @@ if __name__ == '__main__':
 	parser.add_argument('--policy', type=str, default="SAC")
 	parser.add_argument('--rotation', action="store_true", default=False)
 	parser.add_argument('--residual-multiplier', type=float, default=RESIDUAL_MULTIPLIER)
-	parser.add_argument('--residual-with-optimisation', action="store_true", default=False)
+	parser.add_argument('--residual-with-optimisation', action="store_true", default=True)
 	parser.add_argument('--reset-mode', type=str, default="stand")
-	parser.add_argument('--robot-k', type=float, default=0.69)
+	parser.add_argument('--robot-k', type=float, default=0.72)
 	parser.add_argument('--randomise', type=float, default=0)
 	parser.add_argument('--randomise-eval', type=float, default=0)
-	parser.add_argument('--random-initial', action="store_true", default=False)
+	parser.add_argument('--random-initial', action="store_true", default=True)
 	parser.add_argument('--render', action="store_true", default=False)
 	parser.add_argument('--state-mode', type=str, default=STATE_MODE)
 	args = parser.parse_args()
